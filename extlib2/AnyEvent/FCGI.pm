@@ -108,6 +108,52 @@ Optional. Integer number of socket backlog (listen queue)
 
 =cut
 
+# XXX ad hoc patched to AE::tcp_server
+use IO::Socket::INET;
+BEGIN { AnyEvent::common_sense }
+use AnyEvent::Util qw(guard fh_nonblocking);
+sub _tcp_server {
+   my ($host, $service, $accept, $prepare) = @_;
+
+   my %state;
+
+   $state{fh} = IO::Socket::INET->new(
+       Proto => 'tcp',
+       Listen => 128, 
+   );
+
+   $state{fh}->fdopen(0, 'w') or
+      Carp::croak "failed to bind to listening socket: $!";
+
+   fh_nonblocking $state{fh}, 1;
+
+   my $len;
+
+   if ($prepare) {
+      my ($service, $host) = AnyEvent::Socket::unpack_sockaddr getsockname $state{fh};
+      $len = $prepare && $prepare->($state{fh}, AnyEvent::Socket::format_address $host, $service);
+   }
+   
+   $len ||= 128;
+
+   listen $state{fh}, $len
+      or Carp::croak "listen: $!";
+
+   $state{aw} = AE::io $state{fh}, 0, sub {
+      # this closure keeps $state alive
+      while ($state{fh} && (my $peer = accept my $fh, $state{fh})) {
+         fh_nonblocking $fh, 1; # POSIX requires inheritance, the outside world does not
+
+         my ($service, $host) = AnyEvent::Socket::unpack_sockaddr $peer;
+         $accept->($fh, AnyEvent::Socket::format_address $host, $service);
+      }
+   };
+
+   defined wantarray
+      ? guard { %state = () } # clear fh and watcher, which breaks the circular dependency
+      : ()
+}
+
 sub new {
     my ($class, %params) = @_;
 
@@ -121,7 +167,7 @@ sub new {
 
     $params{socket} ||= $params{unix};
 
-    $self->{server} = tcp_server(
+    $self->{server} = _tcp_server(
         $params{socket} ? 'unix/' : $params{host},
         $params{socket} || $params{port},
         sub {$fcgi->_on_accept(shift)},
