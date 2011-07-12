@@ -3,8 +3,9 @@ use strict;
 use warnings;
 use utf8;
 use lib qw(
-    ../extlib2
-    ../extlib/lib/perl5 ../extlib/lib/perl5/x86_64-linux-gnu-thread-multi
+    ../lib
+    ../extlib/lib/perl5
+    ../extlib/lib/perl5/x86_64-linux-gnu-thread-multi
 );
 use AnyEvent;
 use Plack::Handler::AnyEvent::FCGI;
