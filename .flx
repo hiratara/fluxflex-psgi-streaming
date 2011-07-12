@@ -1,0 +1,2 @@
+[setup]
+/usr/local/bin/cpanm -l extlib Plack::Handler::AnyEvent::FCGI
