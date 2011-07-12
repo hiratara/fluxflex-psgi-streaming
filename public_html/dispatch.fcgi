@@ -14,7 +14,7 @@ my $app = sub {
 
     return sub {
         my $respond = shift;
-        my $t; $t = AE::timer 0, 0, sub {
+        my $t; $t = AE::timer 3, 0, sub {
             $respond->([
                 200, ["Content-Type" => "text/plain; charset=utf-8"], ["OK\n"]
             ]);
